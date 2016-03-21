@@ -1,14 +1,13 @@
 #!/usr/bin/perl
 
 #Read the README
-#use strict;
-#use warnings;
+use strict;
+use warnings;
 use HTML::TreeBuilder;
+use feature qw(say);
 
 #hard coded for now
-my $file_in = "2016-02.html";
-#start of volume sales info
-my $vol_start = "Trade Paperback titlePricePublisherEst. sales";
+my $file_in = "test.html";
 #will store the information for each issue
 my @issue_info; 
 
@@ -16,9 +15,11 @@ my $tree = HTML::TreeBuilder -> new();
 $tree -> parse_file($file_in);
 
 my @tables = $tree -> look_down("_tag" => "table");
-
 #the second table tag has the relevant information
 my @rows = $tables[1] -> look_down("_tag" => "tr");
+
+my $total_sales = 0;
+my $avg = 0;
 
 foreach my $tablerow_elem (@rows) {
 	#stop parsing at empty string
@@ -31,21 +32,30 @@ foreach my $tablerow_elem (@rows) {
 	#/(\d+)(.+)(\d)(\$\d+\.\d{2})(\w*?)((\d{3},\d{3})|(\d{1,3}))/
 	
 	my @cells = $tablerow_elem -> content_list();
-
-	#there may be no issue number, meaning one less field
-	if (not defined $cells[5]) {
-		push @issue_info, join "||", ($cells[0] -> as_trimmed_text() , $cells[1] -> as_trimmed_text()
-										, $cells[2] -> as_trimmed_text() , $cells[3] -> as_trimmed_text()
-										, $cells[4] -> as_trimmed_text());
-	} else {
-		push @issue_info, join "||", ($cells[0] -> as_trimmed_text() , $cells[1] -> as_trimmed_text()
-										, $cells[2] -> as_trimmed_text() , $cells[3] -> as_trimmed_text()
-										, $cells[4] -> as_trimmed_text(), $cells[5] -> as_trimmed_text());
+	my $num_cells = $tablerow_elem -> content_list();
+	
+	my $info = "";
+	for (my $i = 0; $i < $num_cells - 1; $i++) {
+		$info .= "|".$cells[$i] -> as_trimmed_text()."|";
 	}
+	my $sales = $cells[$#cells] -> as_trimmed_text();
+	if ($sales =~ s/,//) {
+		$total_sales += $sales;
+	}
+	$info .= "|".$sales."|";
+	push @issue_info, $info;
 }
 
-foreach my $iss (@issue_info) {
-		print $iss, "\n";
-	}
+#first entry is header
+shift @issue_info;
 
-$tree = $tree -> delete;
+foreach my $iss (@issue_info) {
+		say $iss;
+}
+say "Average sales is ", calcAvg($total_sales, scalar @issue_info);
+$tree = $tree -> delete();
+
+sub calcAvg {
+	my ($total, $num_items) = @_;
+	return $total / $num_items;
+}
