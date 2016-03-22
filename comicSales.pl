@@ -7,7 +7,7 @@ use HTML::TreeBuilder;
 use feature qw(say);
 
 #hard coded for now
-my $file_in = "test.html";
+my $file_in = "2016-02.html";
 #will store the information for each issue
 my @issue_info; 
 
@@ -21,38 +21,29 @@ my @rows = $tables[1] -> look_down("_tag" => "tr");
 my $total_sales = 0;
 my $avg = 0;
 
-foreach my $tablerow_elem (@rows) {
+for my $i (1..$#rows) {
 	#stop parsing at empty string
-	if (length $tablerow_elem -> as_trimmed_text() == 0) {
+	if (length $rows[$i] -> as_trimmed_text() == 0) {
 		last;
 	}
-
-	#may not be needed
-	#pattern is RANK TITLE ISSUE PRICE PUBLISHER SALES
-	#/(\d+)(.+)(\d)(\$\d+\.\d{2})(\w*?)((\d{3},\d{3})|(\d{1,3}))/
-	
-	my @cells = $tablerow_elem -> content_list();
-	my $num_cells = $tablerow_elem -> content_list();
-	
+	my @cells = $rows[$i] -> content_list();
 	my $info = "";
-	for (my $i = 0; $i < $num_cells - 1; $i++) {
+	for (my $i = 0; $i < scalar @cells - 1; $i++) {
 		$info .= "|".$cells[$i] -> as_trimmed_text()."|";
 	}
+	#remove comma from sales number
 	my $sales = $cells[$#cells] -> as_trimmed_text();
-	if ($sales =~ s/,//) {
-		$total_sales += $sales;
-	}
+	$sales =~ s/,//;
+	$total_sales += $sales;
 	$info .= "|".$sales."|";
 	push @issue_info, $info;
 }
 
-#first entry is header
-shift @issue_info;
-
 foreach my $iss (@issue_info) {
-		say $iss;
+	say $iss;
 }
-say "Average sales is ", calcAvg($total_sales, scalar @issue_info);
+say sprintf("The total sales for %d issues is %d.", scalar @issue_info, $total_sales);
+say sprintf("The average sales is %f.", calcAvg($total_sales, scalar @issue_info));
 $tree = $tree -> delete();
 
 sub calcAvg {
