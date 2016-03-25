@@ -13,8 +13,9 @@ my $file_in = "test.html";
 #will store the information for each issue
 my @issue_list; 
 
-my $tree = HTML::TreeBuilder -> new();
-$tree -> parse_file($file_in);
+#my $tree = HTML::TreeBuilder -> new_from_file($file_in);
+my $tree = HTML::TreeBuilder -> new_from_url("http://www.comichron.com/monthlycomicssales/2016/2016-02.html");
+#$tree -> parse_file($file_in);
 
 my @tables = $tree -> look_down("_tag" => "table");
 #the second table tag has the relevant information
@@ -26,21 +27,43 @@ for my $i (1..$#rows) {
 		last;
 	}
 	my @cells = $rows[$i] -> content_list();
-	#remove dollar sign from price
-	my $price = $cells[3] -> as_trimmed_text();
-	$price =~ s/\$//;
-	#remove comma from sales number
-	my $sales = $cells[5] -> as_trimmed_text();
-	$sales =~ s/,//g;
-	my $issue = ComicIssue -> new(rank => $cells[0] -> as_trimmed_text() , name => $cells[1] -> as_trimmed_text(), 
-								number => $cells[2] -> as_trimmed_text(), price => $price, 
-								publisher => $cells[4] -> as_trimmed_text(), sales => $sales);
+	my ($number, $price, $sales, $issue);
+	#may be missing issue number, means there is only 5 fields, not 6
+	if (scalar @cells == 5) {
+		#remove dollar sign from price
+		$price = $cells[2] -> as_trimmed_text();
+		$price =~ s/\$//;
+		#remove comma from sales number
+		$sales = $cells[4] -> as_trimmed_text();
+		$sales =~ s/,//g;
+		$issue = ComicIssue -> new(rank => $cells[0] -> as_trimmed_text() , name => $cells[1] -> as_trimmed_text(), 
+									price => $price, publisher => $cells[3] -> as_trimmed_text(), sales => $sales);
+	} elsif (scalar @cells == 6) {
+		#remove * from issue number
+		$number = $cells[2] -> as_trimmed_text();
+		$number =~ s/\*//;
+		#remove any non numbers from issue number
+		#eg in '2 2nd Ptg' remove the 2nd Ptg
+		if ($number =~ m/\b(\d+(\.\d{2,})?)\b.+/) {
+			$number = $1;
+		}
+		#remove dollar sign from price
+		$price = $cells[3] -> as_trimmed_text();
+		$price =~ s/\$//;
+		#remove comma from sales number
+		$sales = $cells[5] -> as_trimmed_text();
+		$sales =~ s/,//g;
+		$issue = ComicIssue -> new(rank => $cells[0] -> as_trimmed_text() , name => $cells[1] -> as_trimmed_text(), 
+									number => $number, price => $price, 
+									publisher => $cells[4] -> as_trimmed_text(), sales => $sales);
+	}
 	push @issue_list, $issue;
 }
 
 foreach my $issue (@issue_list) {
 	say $issue -> toString();
 }
+
 say sprintf("The total sales for %d issues is %d.", scalar @issue_list, calcTotalSales(\@issue_list));
 say sprintf("The average number of sales is %d.", calcAvgSales(\@issue_list));
 say sprintf("The median number of sales is %d.", calcMedianSales(\@issue_list));
@@ -67,23 +90,24 @@ sub calcAvgSales {
 
 sub calcMedianSales {
 	my ($list) = shift;
-	if (scalar @$list % 2 == 0) {
-		return ($list -> [scalar @$list / 2 - 1] -> sales + $list -> [scalar @$list / 2] -> sales) / 2;
+	my @sorted = sort(sort_Sales @$list);
+	if (scalar @sorted % 2 == 0) {
+		return ($sorted[scalar @sorted / 2 - 1] -> sales + $sorted[scalar @sorted / 2] -> sales) / 2;
 	} else {
-		return $list -> [int(scalar @$list / 2)] -> sales;
+		return $sorted[int(scalar @sorted / 2)] -> sales;
 	}
 }
 
 sub calcMaxSales {
 	my ($list) = shift;
-	my @sorted = sort sort_Sales @$list;
+	my @sorted = sort(sort_Sales @$list);
 	my $max = pop @sorted;
 	return $max -> sales;
 }
 
 sub calcMinSales {
 	my ($list) = shift;
-	my @sorted = sort sort_Sales @$list;
+	my @sorted = sort(sort_Sales @$list);
 	my $min = shift @sorted;
 	return $min -> sales;
 }

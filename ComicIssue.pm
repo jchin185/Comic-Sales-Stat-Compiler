@@ -11,7 +11,12 @@ has "sales" => (is => "rw", isa => "Num");
 
 sub toString {
 	my $self = shift;
-	return join(", ", $self -> rank, $self -> name, $self -> number,
-		$self -> price, $self -> publisher, $self -> sales);
+	if (defined $self -> number) {
+		return join(", ", $self -> rank, $self -> name, $self -> number,
+			$self -> price, $self -> publisher, $self -> sales);
+	} else {
+		return join(", ", $self -> rank, $self -> name, $self -> price, 
+			$self -> publisher, $self -> sales);
+	}
 }
 1;
