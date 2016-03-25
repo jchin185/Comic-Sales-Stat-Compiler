@@ -6,16 +6,46 @@ use warnings;
 use HTML::TreeBuilder;
 use feature qw(say);
 use List::Util qw(max min);
+use Getopt::Long;
 use ComicIssue;
 
-#hard coded for now
-my $file_in = "test.html";
+#date flag
+my $input_url = "";
+#file flag
+my $input_file = "";
+#help flag
+my $help = "";
+
+my $help_string = "You have either used the h/help flag or made an error.
+If you specify a date it must be mm/yyyy format.";
+
+GetOptions("d|date=s" => \$input_url, "f|file=s" => \$input_file, "h|help|?" => \$help);
+
+#help takes precedence
+if ($help) {
+	say $help_string;
+	exit(0);
+}
+
+if ($input_url and $input_file) {
+	say "You are only allowed to specify either a date or an input html file.";
+	exit(0);
+}
+
+my $tree;
+my $url = "http://www.comichron.com/monthlycomicssales/";
+
+#must match mm/yyyy format
+if ($input_url and $input_url =~ m/(\d{2})\/(\d{4})/) {
+	$tree = HTML::TreeBuilder -> new_from_url($url.$2."/".$2."-".$1.".html");
+} 
+
+if ($input_file) {
+	$tree = HTML::TreeBuilder -> new_from_file($input_file);
+}
+
 #will store the information for each issue
 my @issue_list; 
-
-#my $tree = HTML::TreeBuilder -> new_from_file($file_in);
-my $tree = HTML::TreeBuilder -> new_from_url("http://www.comichron.com/monthlycomicssales/2016/2016-02.html");
-#$tree -> parse_file($file_in);
 
 my @tables = $tree -> look_down("_tag" => "table");
 #the second table tag has the relevant information
