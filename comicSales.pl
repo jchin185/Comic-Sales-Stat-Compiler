@@ -36,8 +36,13 @@ my $tree;
 my $url = "http://www.comichron.com/monthlycomicssales/";
 
 #must match mm/yyyy format
-if ($input_url and $input_url =~ m/(\d{2})\/(\d{4})/) {
-	$tree = HTML::TreeBuilder -> new_from_url($url.$2."/".$2."-".$1.".html");
+if ($input_url) {
+	if ($input_url =~ m/(\d{2})\/(\d{4})/) {
+		$tree = HTML::TreeBuilder -> new_from_url($url.$2."/".$2."-".$1.".html");
+	} else {
+		say $help_string;
+		exit(2);
+	}
 } 
 
 if ($input_file) {
@@ -57,35 +62,49 @@ for my $i (1..$#rows) {
 		last;
 	}
 	my @cells = $rows[$i] -> content_list();
-	my ($number, $price, $sales, $issue);
-	#may be missing issue number, means there is only 5 fields, not 6
+	my ($rank, $name, $number, $price, $publisher, $sales, $issue);
+	$rank = $cells[0] -> as_trimmed_text();
+	#stop parsing if there is no rank
+	#indicates that there is a special note
+	# eg 04/1997
+	if ($rank !~ m/\d+/) {
+		last;
+	}
+	$name = $cells[1] -> as_trimmed_text();
+	#may be missing issue number field in html, means there is only 5 fields, not 6
 	if (scalar @cells == 5) {
 		#remove dollar sign from price
 		$price = $cells[2] -> as_trimmed_text();
 		$price =~ s/\$//;
+		$publisher = $cells[3] -> as_trimmed_text();
 		#remove comma from sales number
 		$sales = $cells[4] -> as_trimmed_text();
 		$sales =~ s/,//g;
-		$issue = ComicIssue -> new(rank => $cells[0] -> as_trimmed_text() , name => $cells[1] -> as_trimmed_text(), 
-									price => $price, publisher => $cells[3] -> as_trimmed_text(), sales => $sales);
+		$issue = ComicIssue -> new(rank => $rank , name => $name, price => $price, 
+									publisher => $publisher, sales => $sales);
 	} elsif (scalar @cells == 6) {
-		#remove * from issue number
+		#html may have 6 fields, but issue number is empty
+		#give default value 1
 		$number = $cells[2] -> as_trimmed_text();
+		if ($number eq "") {
+			$number = 1;
+		}
+		#remove * from issue number
 		$number =~ s/\*//;
 		#remove any non numbers from issue number
 		#eg in '2 2nd Ptg' remove the 2nd Ptg
 		if ($number =~ m/\b(\d+(\.\d{2,})?)\b.+/) {
 			$number = $1;
 		}
+		$publisher = $cells[4] -> as_trimmed_text();
 		#remove dollar sign from price
 		$price = $cells[3] -> as_trimmed_text();
 		$price =~ s/\$//;
 		#remove comma from sales number
 		$sales = $cells[5] -> as_trimmed_text();
 		$sales =~ s/,//g;
-		$issue = ComicIssue -> new(rank => $cells[0] -> as_trimmed_text() , name => $cells[1] -> as_trimmed_text(), 
-									number => $number, price => $price, 
-									publisher => $cells[4] -> as_trimmed_text(), sales => $sales);
+		$issue = ComicIssue -> new(rank => $rank , name => $name, number => $number, 
+									price => $price, publisher => $publisher, sales => $sales);
 	}
 	push @issue_list, $issue;
 }
