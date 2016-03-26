@@ -16,10 +16,18 @@ my $input_file = "";
 #help flag
 my $help = "";
 
-my $help_string = "You have either used the h/help flag or made an error.
-If you specify a date it must be mm/yyyy format.";
+#how many issues to display, default 10
+my $max_limit = 10;
 
-GetOptions("d|date=s" => \$input_url, "f|file=s" => \$input_file, "h|help|?" => \$help);
+#replace with Pod::Usuage
+my $help_string = "Usuage: perl comicSales.pl [switches] [arguments]
+-d or --date	specify a month and year in mm/yyyy to get information from
+-f or --file	specify a html file to get information from
+-l or --limit	specify a limit of how many issues to show, default 10
+-h or --help	this help menu";
+
+GetOptions("d|date=s" => \$input_url, "f|file=s" => \$input_file, 
+			"l|limit=i" => \&handle_limit, "h|help|?" => \$help);
 
 #help takes precedence
 if ($help) {
@@ -29,7 +37,7 @@ if ($help) {
 
 if ($input_url and $input_file) {
 	say "You are only allowed to specify either a date or an input html file.";
-	exit(0);
+	exit(2);
 }
 
 my $tree;
@@ -109,8 +117,8 @@ for my $i (1..$#rows) {
 	push @issue_list, $issue;
 }
 
-foreach my $issue (@issue_list) {
-	say $issue -> toString();
+for my $i (0..$max_limit - 1) {
+	say $issue_list[$i] -> toString();
 }
 
 say sprintf("The total sales for %d issues is %d.", scalar @issue_list, calcTotalSales(\@issue_list));
@@ -119,6 +127,18 @@ say sprintf("The median number of sales is %d.", calcMedianSales(\@issue_list));
 say sprintf("The greatest number of sales was %d, while the lowest number was %d.", calcMaxSales(\@issue_list), calcMinSales(\@issue_list));
 
 $tree = $tree -> delete();
+
+#
+# Subroutines for dealing with getopt arguments
+#
+sub handle_limit {
+	my ($opt_name, $opt_value) = @_;
+	if ($opt_value < 0) {
+		$max_limit = 10;
+	} else {
+		$max_limit = $opt_value;
+	}
+}
 
 #
 # Subroutines for stat calculations
